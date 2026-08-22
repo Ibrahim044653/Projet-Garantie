@@ -6,7 +6,8 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { logger } from '../services/logger';
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'hypotheque_jwt_secret_2024_change_in_production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
 const JWT_EXPIRES_IN = '1h';
 const COOKIE_MAX_AGE = 60 * 60 * 1000; // 1 hour
 
@@ -47,7 +48,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: COOKIE_MAX_AGE,
     });
 
@@ -62,7 +63,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         role: user.role,
         mfaEnabled: user.mfaEnabled,
       },
-      token,
     });
   } catch (err) {
     logger.error('Login error:', err);

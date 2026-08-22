@@ -120,12 +120,20 @@ export const validateMfa = async (req: AuthRequest, res: Response): Promise<void
 
     // Générer le JWT final après validation MFA
     const jwt = await import('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'hypotheque_jwt_secret_2024_change_in_production';
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
     const jwtToken = jwt.default.sign(
       { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: '24h' },
+      { expiresIn: '1h' },
     );
+
+    res.cookie('token', jwtToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 60 * 60 * 1000,
+    });
 
     res.json({
       token: jwtToken,

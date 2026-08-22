@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, requireGestionnaire } from '../middleware/auth.middleware';
 import { previewImport, confirmImport } from '../controllers/import.controller';
 
 const storage = multer.memoryStorage();
@@ -25,4 +25,4 @@ export const importRouter = Router();
 importRouter.use(authenticate);
 
 importRouter.post('/preview', upload.single('file'), previewImport);
-importRouter.post('/confirm', confirmImport);
+importRouter.post('/confirm', requireGestionnaire, confirmImport);

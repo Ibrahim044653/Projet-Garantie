@@ -34,12 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return;
       }
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-      // Optimistically restore from localStorage first (instant UX)
+      // Optimistically restore cached user for instant UX
       const cached = localStorage.getItem('user');
       if (cached) {
         try {
@@ -50,16 +45,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsLoading(false);
 
-      // Then silently validate against the server in the background
+      // Validate session against the server (cookie-based)
       authApi.me()
         .then((res) => {
           const fresh = res.data.user ?? res.data;
           setUser(fresh);
           localStorage.setItem('user', JSON.stringify(fresh));
         })
-        .catch(() => {
-          // Only invalidate if not a network error — keep user logged in
-          // when backend is temporarily unreachable
+        .catch((err) => {
+          if (err?.response?.status === 401) {
+            setUser(null);
+            localStorage.removeItem('user');
+          }
+          // Keep cached user on network error (backend temporarily unreachable)
         });
     } catch {
       setIsLoading(false);
@@ -83,11 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    const { token, user: loggedUser } = res.data;
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(loggedUser));
-    setUser(loggedUser);
-    router.push('/dashboard');
+    const { user: loggedUser } = res.data;
+    if (loggedUser) {
+      localStorage.setItem('user', JSON.stringify(loggedUser));
+      setUser(loggedUser);
+      router.push('/dashboard');
+    }
   };
 
   const logout = async () => {
@@ -96,7 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     } finally {
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);
       router.push('/login');

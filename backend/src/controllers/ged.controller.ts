@@ -20,7 +20,7 @@ export const getAll = async (req: AuthRequest, res: Response): Promise<void> => 
     if (search) where.titre = { contains: search as string, mode: 'insensitive' };
 
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-    const take = parseInt(limit as string);
+    const take = Math.min(parseInt(limit as string) || 20, 500);
 
     const [total, documents] = await Promise.all([
       prismaAny.document.count({ where }),
@@ -231,9 +231,12 @@ export const download = async (req: AuthRequest, res: Response): Promise<void> =
       return;
     }
 
+    const safeFilename = (latestVersion.fileName ?? 'document')
+      .replace(/[^\w.\-]/g, '_')
+      .replace(/\s+/g, '_');
     res.set({
       'Content-Type': latestVersion.mimeType || 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${latestVersion.fileName}"`,
+      'Content-Disposition': `attachment; filename="${safeFilename}"`,
       'Content-Length': latestVersion.fileContent.length,
     });
     res.send(latestVersion.fileContent);

@@ -48,9 +48,7 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').spl
 app.use(cors({
   origin: (origin, callback) => {
     const ok = !origin ||
-      allowedOrigins.some((o) => origin.startsWith(o.trim())) ||
-      /\.netlify\.app$/.test(origin) ||
-      /\.vercel\.app$/.test(origin);
+      allowedOrigins.some((o) => origin.startsWith(o.trim()));
     if (ok) {
       callback(null, true);
     } else {
@@ -66,9 +64,6 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
-
-// Static files for uploaded documents
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Health check
 app.get('/api/health', (_req, res) => {

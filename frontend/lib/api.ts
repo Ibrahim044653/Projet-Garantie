@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -8,17 +8,6 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Attach JWT from cookie / localStorage on every request
-apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token') || getCookieToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
 // On 401, clear credentials and signal AuthContext to redirect
 // Do NOT use window.location.href here — it aborts mid-hydration page loads
 // and causes Chrome to display "This page couldn't load" (ERR_ABORTED)
@@ -26,19 +15,12 @@ apiClient.interceptors.response.use(
   (res) => res,
   (error: AxiosError) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.dispatchEvent(new CustomEvent('sgh:unauthorized'));
     }
     return Promise.reject(error);
   }
 );
-
-function getCookieToken(): string | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/(?:^|; )token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
 
 // ---------- Auth ----------
 export const authApi = {

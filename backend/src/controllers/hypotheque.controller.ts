@@ -56,7 +56,7 @@ export const getAll = async (req: AuthRequest, res: Response): Promise<void> => 
     if (zone) where.zoneGeographique = zone;
 
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-    const take = parseInt(limit as string);
+    const take = Math.min(parseInt(limit as string) || 20, 500);
 
     const allHypotheques = await prisma.hypotheque.findMany({
       where,

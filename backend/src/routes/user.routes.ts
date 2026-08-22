@@ -16,7 +16,7 @@ userRouter.post(
   '/',
   [
     body('email').isEmail().withMessage('Valid email required'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters'),
     body('nom').notEmpty().withMessage('Nom required'),
     body('prenom').optional().isString(),
     body('role').optional().isIn(VALID_ROLES),
@@ -29,7 +29,7 @@ userRouter.put(
   '/:id',
   [
     body('email').optional().isEmail(),
-    body('password').optional().isLength({ min: 6 }),
+    body('password').optional().isLength({ min: 12 }),
     body('role').optional().isIn(VALID_ROLES),
   ],
   validate,

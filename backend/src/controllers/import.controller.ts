@@ -348,6 +348,8 @@ export const previewImport = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
+const ALLOWED_IMPORT_TYPES = ['hypotheques', 'clients', 'prets'] as const;
+
 /** POST /api/import/confirm */
 export const confirmImport = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -356,6 +358,38 @@ export const confirmImport = async (req: AuthRequest, res: Response): Promise<vo
     if (!type || !rows || !Array.isArray(rows)) {
       res.status(400).json({ error: 'type et rows requis' });
       return;
+    }
+
+    if (!ALLOWED_IMPORT_TYPES.includes(type as typeof ALLOWED_IMPORT_TYPES[number])) {
+      res.status(400).json({ error: `type invalide — valeurs: ${ALLOWED_IMPORT_TYPES.join(', ')}` });
+      return;
+    }
+
+    // Re-validate row structure: each row must have rowIndex (number) and data (object)
+    for (const row of rows) {
+      if (typeof row.rowIndex !== 'number' || typeof row.data !== 'object' || row.data === null) {
+        res.status(400).json({ error: 'Structure de lignes invalide' });
+        return;
+      }
+    }
+
+    // Re-validate enum fields to prevent bypass of preview validation
+    if (type === 'hypotheques') {
+      for (const row of rows) {
+        const d = row.data;
+        if (d.natureBien && !NATURE_BIENS.includes(String(d.natureBien))) {
+          res.status(400).json({ error: `natureBien invalide: ${d.natureBien}` });
+          return;
+        }
+        if (d.zoneGeographique && !ZONES.includes(String(d.zoneGeographique))) {
+          res.status(400).json({ error: `zoneGeographique invalide: ${d.zoneGeographique}` });
+          return;
+        }
+        if (d.statutOccupation && !STATUTS_OCC.includes(String(d.statutOccupation))) {
+          res.status(400).json({ error: `statutOccupation invalide: ${d.statutOccupation}` });
+          return;
+        }
+      }
     }
 
     if (rows.length === 0) {
