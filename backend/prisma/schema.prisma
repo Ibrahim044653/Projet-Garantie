@@ -114,10 +114,12 @@ model User {
   nom        String
   prenom     String
   role       UserRole @default(GESTIONNAIRE_GARANTIES)
-  mfaSecret  String?
-  mfaEnabled Boolean  @default(false)
-  createdAt  DateTime @default(now()) @db.Timestamptz
-  updatedAt  DateTime @updatedAt @db.Timestamptz
+  mfaSecret           String?
+  mfaEnabled          Boolean   @default(false)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime? @db.Timestamptz
+  createdAt           DateTime  @default(now()) @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @db.Timestamptz
 
   demandesCreees    DemandeValidation[]       @relation("CreateurDemande")
   etapesValidees    EtapeValidation[]         @relation("ValideurEtape")

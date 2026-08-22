@@ -4,7 +4,11 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { setCsrfCookie, clearCsrfCookie } from '../middleware/csrf.middleware';
+import { sendEmail } from '../services/notification.service';
 import { logger } from '../services/logger';
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -17,15 +21,56 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
     const user = await prisma.user.findUnique({ where: { email } });
+
+    // Même message générique si l'email n'existe pas (évite l'énumération d'utilisateurs)
     if (!user) {
       res.status(401).json({ error: 'Email ou mot de passe incorrect' });
       return;
     }
 
+    // Vérifier si le compte est verrouillé
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const remaining = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      res.status(423).json({
+        error: `Compte temporairement verrouillé. Réessayez dans ${remaining} minute(s).`,
+      });
+      return;
+    }
+
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      const attempts = user.failedLoginAttempts + 1;
+      const shouldLock = attempts >= MAX_FAILED_ATTEMPTS;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: attempts,
+          lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
+        },
+      });
+
+      if (shouldLock) {
+        logger.warn(`Account locked after ${MAX_FAILED_ATTEMPTS} failed attempts: ${email}`);
+        sendEmail(
+          user.email,
+          'Alerte sécurité — Compte temporairement verrouillé',
+          `<p>Bonjour ${user.prenom},</p>
+           <p>Votre compte a été temporairement verrouillé pendant <strong>15 minutes</strong>
+           après ${MAX_FAILED_ATTEMPTS} tentatives de connexion échouées.</p>
+           <p>Si vous n'êtes pas à l'origine de ces tentatives, contactez l'administrateur immédiatement.</p>`,
+        ).catch(() => { /* email non bloquant */ });
+      }
+
       res.status(401).json({ error: 'Email ou mot de passe incorrect' });
       return;
+    }
+
+    // Réinitialiser le compteur après une connexion réussie
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
     }
 
     // MFA : si activé, retourner un challenge au lieu du token
