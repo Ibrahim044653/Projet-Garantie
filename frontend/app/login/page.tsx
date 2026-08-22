@@ -43,7 +43,7 @@ export default function LoginPage() {
         setMfaStep(true);
       } else {
         // Normal login — store token + user and navigate
-        localStorage.setItem('token', data.token);
+        sessionStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         router.push('/dashboard');
       }
@@ -68,7 +68,7 @@ export default function LoginPage() {
     try {
       const res = await mfaApi.validate(userId!, mfaCode);
       const data = res.data;
-      localStorage.setItem('token', data.token);
+      sessionStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       router.push('/dashboard');
     } catch (err: unknown) {
