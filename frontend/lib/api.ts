@@ -16,11 +16,17 @@ function getCsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-// Attach CSRF token on every state-changing request (POST / PUT / DELETE / PATCH)
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  if (!SAFE_METHODS.has((config.method ?? 'get').toLowerCase())) {
-    const token = getCsrfToken();
-    if (token) config.headers['X-CSRF-Token'] = token;
+  if (typeof window !== 'undefined') {
+    // Auth token via sessionStorage (cleared on tab close, safer than localStorage)
+    const token = sessionStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    // CSRF token sur les requêtes mutantes
+    if (!SAFE_METHODS.has((config.method ?? 'get').toLowerCase())) {
+      const csrf = getCsrfToken();
+      if (csrf) config.headers['X-CSRF-Token'] = csrf;
+    }
   }
   return config;
 });
@@ -32,6 +38,7 @@ apiClient.interceptors.response.use(
   (res) => res,
   (error: AxiosError) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      sessionStorage.removeItem('token');
       localStorage.removeItem('user');
       window.dispatchEvent(new CustomEvent('sgh:unauthorized'));
     }

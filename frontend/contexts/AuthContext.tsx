@@ -34,18 +34,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return;
       }
-      // Optimistically restore cached user for instant UX
+      const hasToken = !!sessionStorage.getItem('token');
       const cached = localStorage.getItem('user');
+
+      // Sans token ni cache, l'utilisateur n'est pas connecté
+      if (!hasToken && !cached) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Restaurer le cache immédiatement pour une UX instantanée
       if (cached) {
-        try {
-          setUser(JSON.parse(cached));
-        } catch {
-          // ignore malformed cache
-        }
+        try { setUser(JSON.parse(cached)); } catch { /* ignore */ }
       }
       setIsLoading(false);
 
-      // Validate session against the server (cookie-based)
+      // Valider la session côté serveur
       authApi.me()
         .then((res) => {
           const fresh = res.data.user ?? res.data;
@@ -56,8 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (err?.response?.status === 401) {
             setUser(null);
             localStorage.removeItem('user');
+            sessionStorage.removeItem('token');
           }
-          // Keep cached user on network error (backend temporarily unreachable)
+          // Conserver le cache si erreur réseau (backend temporairement inaccessible)
         });
     } catch {
       setIsLoading(false);
@@ -81,8 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    const { user: loggedUser } = res.data;
+    const { token, user: loggedUser } = res.data;
     if (loggedUser) {
+      if (token) sessionStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(loggedUser));
       setUser(loggedUser);
       router.push('/dashboard');
@@ -95,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     } finally {
+      sessionStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);
       router.push('/login');
