@@ -248,10 +248,12 @@ export default function BiPage() {
         impayes: 'Impayés', encoursTotalM: 'Encours (M FCFA)',
         inscriptionsPerimees: 'Inscriptions périmées', expertisesAnciennes: 'Expertises > 5 ans',
       };
-      const kpisArray: BiKpi[] = Object.entries(kpisObj).map(([key, val]) => ({
-        label: LABEL_MAP[key] ?? key,
-        valeur: val as number | string,
-      }));
+      const kpisArray: BiKpi[] = Object.entries(kpisObj)
+        .filter(([, val]) => typeof val !== 'object' || val === null)
+        .map(([key, val]) => ({
+          label: LABEL_MAP[key] ?? key,
+          valeur: val as number | string,
+        }));
       setKpis(kpisArray);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.message
@@ -591,7 +593,9 @@ export default function BiPage() {
                       : kpi.unite === 'M'
                         ? fmtM(kpi.valeur)
                         : fmtExact(kpi.valeur)
-                    : kpi.valeur}
+                    : typeof kpi.valeur === 'string'
+                      ? kpi.valeur
+                      : String(kpi.valeur)}
                 </p>
                 {kpi.unite && kpi.unite !== '%' && kpi.unite !== 'M' && (
                   <p className="text-xs text-slate-400">{kpi.unite}</p>
