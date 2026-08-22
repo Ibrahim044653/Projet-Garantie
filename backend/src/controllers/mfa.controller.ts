@@ -3,6 +3,7 @@ import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { setCsrfCookie } from '../middleware/csrf.middleware';
 
 const prisma = new PrismaClient();
 
@@ -134,6 +135,7 @@ export const validateMfa = async (req: AuthRequest, res: Response): Promise<void
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 60 * 60 * 1000,
     });
+    setCsrfCookie(res);
 
     res.json({
       token: jwtToken,

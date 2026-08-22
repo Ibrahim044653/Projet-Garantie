@@ -32,6 +32,7 @@ import { searchRouter } from './routes/search.routes';
 import { importRouter } from './routes/import.routes';
 import { simulationRouter } from './routes/simulation.routes';
 import { iaRouter } from './routes/ia.routes';
+import { validateCsrf } from './middleware/csrf.middleware';
 import { generateAlerts } from './services/alert.service';
 import { notifyShortfall, notifyExpertiseExpiring } from './services/notification.service';
 
@@ -57,13 +58,16 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
 }));
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// CSRF protection — validates X-CSRF-Token on all state-changing requests
+app.use(validateCsrf);
 
 // Health check
 app.get('/api/health', (_req, res) => {

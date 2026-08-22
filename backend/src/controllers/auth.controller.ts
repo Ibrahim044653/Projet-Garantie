@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { setCsrfCookie, clearCsrfCookie } from '../middleware/csrf.middleware';
 import { logger } from '../services/logger';
 
 const prisma = new PrismaClient();
@@ -52,6 +53,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       maxAge: COOKIE_MAX_AGE,
     });
 
+    setCsrfCookie(res);
     logger.info(`User logged in: ${user.email} (${user.role})`);
 
     res.json({
@@ -72,6 +74,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const logout = (_req: Request, res: Response): void => {
   res.clearCookie('token');
+  clearCsrfCookie(res);
   res.json({ message: 'Logged out successfully' });
 };
 

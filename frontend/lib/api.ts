@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
@@ -6,6 +6,23 @@ export const apiClient = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
+});
+
+const SAFE_METHODS = new Set(['get', 'head', 'options']);
+
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|; )csrf-token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+// Attach CSRF token on every state-changing request (POST / PUT / DELETE / PATCH)
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (!SAFE_METHODS.has((config.method ?? 'get').toLowerCase())) {
+    const token = getCsrfToken();
+    if (token) config.headers['X-CSRF-Token'] = token;
+  }
+  return config;
 });
 
 // On 401, clear credentials and signal AuthContext to redirect
